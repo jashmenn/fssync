@@ -3,6 +3,71 @@ require 'hadoop-0.20.0-core.jar'
 require 'pp'
 require 'find'
 
+
+module HSync #:nodoc:
+  module CoreExtensions #:nodoc:
+    module Hash #:nodoc:
+      module Diff
+        def self.do_deep_diff(a, b)
+          ma = do_deep_diff2(a, b)
+          # bs = do_deep_diff2(b, a)
+          # as.merge(bs)
+          mb = []
+
+          [ma, mb]
+        end
+
+        def self.do_deep_diff2(a, b)
+          results = {}
+          b.each do |k,v|
+            if a.has_key?(k)
+              if v.kind_of?(Hash)
+                results[k] = do_deep_diff2(v, a[k])
+              else
+                # results[k] = v
+              end
+            else
+              results[k] = v
+            end
+          end
+          results
+        end
+
+
+        # Returns a hash that represents the difference between two hashes.
+        #
+        # Examples:
+        #
+        #   {1 => 2}.diff(1 => 2)         # => {}
+        #   {1 => 2}.diff(1 => 3)         # => {1 => 2}
+        #   {}.diff(1 => 2)               # => {1 => 2}
+        #   {1 => 2, 3 => 4}.diff(1 => 2) # => {3 => 4}
+        def deep_diff(h2)
+          HSync::CoreExtensions::Hash::Diff.do_deep_diff(self, h2)
+        end
+
+        private
+      end
+    end
+  end
+end
+
+class Hash
+  include HSync::CoreExtensions::Hash::Diff
+end
+
+module HSync
+  def self.compare(a, b)
+    r = Results.new
+    ma,mb = *a.deep_diff(b)
+    r.files_missing_in_a = ma
+    r.files_missing_in_b = mb
+    r
+  end
+
+class Results < Struct.new(:files_missing_in_a, :files_missing_in_b, :files_newer_in_a, :files_newer_in_b)
+end
+
 # gather files -> build directory tree A
 #                 build directory tree B 
 # 
@@ -19,13 +84,27 @@ require 'find'
 # perform the action on 
 
 class Node
-  attr_accessor :replication, :length, :owner, :group, :path, :type, :mtime
-  def initialize(replication=nil, length=nil, owner=nil, group=nil, path=nil, type=nil, mtime=nil)
-    @replication, @length, @owner, @group, @path, @type, @mtime = replication, length, owner, group, path, type, mtime
+  include Comparable
+
+  attr_accessor :replication, :length, :owner, :group, :path, :kind, :mtime
+  def initialize(replication=nil, length=nil, owner=nil, group=nil, path=nil, kind=nil, mtime=nil)
+    @replication, @length, @owner, @group, @path, @kind, @mtime = replication, length, owner, group, path, kind, mtime
   end
 
   def is_dir?
-    type == "dir" ? true : false
+    kind == "dir" ? true : false
+  end
+
+  def eql?(other)
+    puts "called eql"
+    %w{group length mtime owner path replication kind}.each do |at| 
+      return false unless self.send(at) == other.send(at)
+    end
+    true
+  end
+
+  def ==(other)
+    eql?(other)
   end
 end
 
@@ -57,11 +136,10 @@ class FsShellProxy
         else
           files[File.basename(path)] = Node.new(replication=stat.getReplication, length=stat.getLen, 
                               owner=stat.getOwner, group=stat.getGroup, 
-                              path=path, type=(stat.isDir ? "dir" : "file"),
+                              path=path, kind=(stat.isDir ? "dir" : "file"),
                               mtime=stat.getModificationTime);
         end
       end
-
     end
 
     files
@@ -90,7 +168,7 @@ class LocalFs
           f[File.basename(path)] = Node.new(
                               replication=nil, length=stat.size, 
                               owner=stat.uid, group=stat.gid, 
-                              path=path, type=(stat.directory? ? "dir" : "file"),
+                              path=path, kind=(stat.directory? ? "dir" : "file"),
                               mtime=(File.mtime(path).to_f * 1000).to_i)
         end
       end
@@ -98,10 +176,14 @@ class LocalFs
   end
 end
 
+end
 
+
+if $0 == __FILE__
+
+include HSync
 
 path = ARGV[0] || "/"
-
 local_nodes = LocalFs.new.ls(path, true)
 pp local_nodes
 
@@ -114,4 +196,4 @@ pp local_nodes
   # puts "%-60s %20s %s" % [n.path, n.length, n.mtime]
 # end
 
-  
+end 
