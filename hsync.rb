@@ -8,45 +8,45 @@ module HSync #:nodoc:
   module CoreExtensions #:nodoc:
     module Hash #:nodoc:
       module Diff
-        def self.do_deep_diff(a, b)
-          ma = do_deep_diff2(a, b)
-          # bs = do_deep_diff2(b, a)
-          # as.merge(bs)
-          mb = []
-
+        def self.do_deep_diff(a, b, opts={}, block=nil)
+          ma = do_deep_diff2(a, b, opts, block)
+          mb = do_deep_diff2(b, a, opts, block)
           [ma, mb]
         end
 
-        def self.do_deep_diff2(a, b)
+        def self.do_deep_diff2(a, b, opts={}, block=nil)
           results = {}
           b.each do |k,v|
             if a.has_key?(k)
-              if v.kind_of?(Hash)
-                results[k] = do_deep_diff2(v, a[k])
+              if v.kind_of?(::Hash)
+                returned = do_deep_diff2(v, a[k], opts, block)
+                if returned && returned.size > 0
+                  results[k] = returned
+                end
               else
-                # results[k] = v
+                if m = opts[:intersection]
+                  # if the return value of m isnt equal, call the conflict
+                  # resolution block
+                  unless v.send(m) == a[k].send(m)
+                    if returned = block.call(v, a[k])
+                      results[k] = returned
+                    end
+                  end
+                end
               end
             else
-              results[k] = v
+              unless opts[:intersection]
+                results[k] = v
+              end
             end
           end
           results
         end
 
-
-        # Returns a hash that represents the difference between two hashes.
-        #
-        # Examples:
-        #
-        #   {1 => 2}.diff(1 => 2)         # => {}
-        #   {1 => 2}.diff(1 => 3)         # => {1 => 2}
-        #   {}.diff(1 => 2)               # => {1 => 2}
-        #   {1 => 2, 3 => 4}.diff(1 => 2) # => {3 => 4}
-        def deep_diff(h2)
-          HSync::CoreExtensions::Hash::Diff.do_deep_diff(self, h2)
+        def deep_diff(h2, opts={}, &block)
+          HSync::CoreExtensions::Hash::Diff.do_deep_diff(self, h2, opts, block)
         end
 
-        private
       end
     end
   end
@@ -62,6 +62,13 @@ module HSync
     ma,mb = *a.deep_diff(b)
     r.files_missing_in_a = ma
     r.files_missing_in_b = mb
+
+    na,nb = *a.deep_diff(b, {:intersection => :mtime}) do |node1, node2| 
+      node1.mtime > node2.mtime ? nil : node2
+    end
+    r.files_newer_in_a = na
+    r.files_newer_in_b = nb
+
     r
   end
 
@@ -96,7 +103,6 @@ class Node
   end
 
   def eql?(other)
-    puts "called eql"
     %w{group length mtime owner path replication kind}.each do |at| 
       return false unless self.send(at) == other.send(at)
     end

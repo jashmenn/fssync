@@ -25,7 +25,7 @@ class TreeComparisonTest < Test::Unit::TestCase
            },
          "c"=>
            {
-             "file3"=> Node.new(nil, l=100, nil, nil, path="a/file3", "file", mtime=100)
+             "file3"=> Node.new(nil, l=100, nil, nil, path="c/file3", "file", mtime=100)
            }
         }
 
@@ -78,7 +78,7 @@ class TreeComparisonTest < Test::Unit::TestCase
            },
          "c"=>
            {
-             "file3"=> Node.new(nil, l=100, nil, nil, path="a/file3", "file", mtime=100)
+             "file3"=> Node.new(nil, l=100, nil, nil, path="c/file3", "file", mtime=100)
            }
         }
 
@@ -91,7 +91,7 @@ class TreeComparisonTest < Test::Unit::TestCase
            {
              "b"=>
              {
-              "file3"=> Node.new(nil, l=100, nil, nil, path="a/b/file3", "file", mtime=150)
+              "file3"=> Node.new(nil, l=100, nil, nil, path="a/b/file3", "file", mtime=200)
              }
            }
     }
