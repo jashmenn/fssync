@@ -1,6 +1,7 @@
 require 'java'
 require 'hadoop-0.20.0-core.jar'
 require 'pp'
+require 'logger'
 
 module HSync #:nodoc:
   module CoreExtensions #:nodoc:
@@ -113,15 +114,20 @@ class Synchro
                 end
     results = HSync::compare(LocalFs.new.ls(@source, true), destfiles)
     push_files(results.files_missing_in_b)
-    push_files(results.files_newer_in_a)
+    # push_files(results.files_newer_in_a)
   end
 
   def push_files(files)
     shell = FsShellProxy.new
-    files.to_paths.each do |file|
+    f = files.to_paths
+    logger.info("pushing #{f.size} files")
+    logger.info(f.pretty_inspect)
+
+    f.each do |file|
+      src = "#{@source}/#{file}"
       dest = "#{@dest}/#{file}" 
-      logger.info("cp #{file} #{dest}")
-      shell.cp(file, dest)
+      logger.info("cp #{src} #{dest}")
+      shell.cp(src, dest)
     end
   end
 
