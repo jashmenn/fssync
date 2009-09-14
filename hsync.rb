@@ -45,6 +45,24 @@ module HSync #:nodoc:
           HSync::CoreExtensions::Hash::Diff.do_deep_diff(self, h2, opts, block)
         end
 
+        def to_paths
+          do_to_paths(self)
+        end
+
+        private
+        def do_to_paths(input, prefix=[], paths=[])
+          if input.kind_of?(::Hash)
+            input.each do |k,v|
+              if (result = do_to_paths(v, prefix.dup << k, paths)) && result.kind_of?(String)
+                paths << result
+              end
+            end
+          else
+            return prefix.join("/")
+          end
+          paths
+        end
+
       end
     end
   end
@@ -94,21 +112,21 @@ class Synchro
                   {}
                 end
     results = HSync::compare(LocalFs.new.ls(@source, true), destfiles)
-    push_files_missing_in_dest(results)
-    push_files_newer_in_source(results)
-  end
-
-  def push_files_missing_in_dest(results)
-    files = results.files_missing_in_b
-
-  end
-
-  def push_files_newer_in_source(results)
-    # results.files_newer_in_a
+    push_files(results.files_missing_in_b)
+    push_files(results.files_newer_in_a)
   end
 
   def push_files(files)
-     
+    pp files
+    pp files.to_paths
+  # void copyFromLocal(Path[] srcs, String dstf) throws IOException {
+  #   Path dstPath = new Path(dstf);
+  #   FileSystem dstFs = dstPath.getFileSystem(getConf());
+  #   if (srcs.length == 1 && srcs[0].toString().equals("-"))
+  #     copyFromStdin(dstPath, dstFs);
+  #   else
+  #     dstFs.copyFromLocalFile(false, false, srcs, dstPath);
+  # }
   end
 
   def logger

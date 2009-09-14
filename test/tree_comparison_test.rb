@@ -111,6 +111,8 @@ class TreeComparisonTest < Test::Unit::TestCase
 
     assert_equal(wanted_nb, nb)
 
+    a_to_paths = ["a/b/file1", "a/b/file2", "a/b/file3", "a/b/file4", "c/file3"]
+    assert_equal(a_to_paths, @A.to_paths)
 
   end
 end
