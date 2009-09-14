@@ -1,8 +1,6 @@
 require 'java'
 require 'hadoop-0.20.0-core.jar'
 require 'pp'
-require 'find'
-
 
 module HSync #:nodoc:
   module CoreExtensions #:nodoc:
@@ -72,23 +70,59 @@ module HSync
     r
   end
 
-class Results < Struct.new(:files_missing_in_a, :files_missing_in_b, :files_newer_in_a, :files_newer_in_b)
+  def self.sync(source, dest)
+    Synchro.new(source, dest).sync!
+  end
+
+class Synchro
+  def initialize(source, dest)
+    @source, @dest = source, dest
+  end
+
+  #     A:Source   |  B:Dest     |  Type     |  Action       
+  #     exists     | not exist   | File      | copy A -> B   
+  #     exists     | not exist   | Directory | mkdir B       
+  #     not exist  | exists      | File      | no action     
+  #     not exist  | exists      | Directory | no action     
+  #     newer      | older       | File      | copy A -> B   
+  #     older      | newer       | File      | warning       
+  def sync!
+
+    destfiles = begin 
+                  FsShellProxy.new.ls(@dest, true) 
+                rescue NoSuchFile 
+                  {}
+                end
+    results = HSync::compare(LocalFs.new.ls(@source, true), destfiles)
+    push_files_missing_in_dest(results)
+    push_files_newer_in_source(results)
+  end
+
+  def push_files_missing_in_dest(results)
+    files = results.files_missing_in_b
+
+  end
+
+  def push_files_newer_in_source(results)
+    # results.files_newer_in_a
+  end
+
+  def push_files(files)
+     
+  end
+
+  def logger
+    @logger ||= begin 
+              logger = Logger.new(@logdev || STDOUT)
+              logger.formatter = Logger::Formatter.new
+              logger.datetime_format = "%Y-%m-%d %H:%M:%S"
+              logger
+            end
+  end
 end
 
-# gather files -> build directory tree A
-#                 build directory tree B 
-# 
-# calculate the 6 diffs ->
-# 
-#     A:Source   |  B:Dest     |  Type     |  Action       
-#     exists     | not exist   | File      | copy A -> B   
-#     exists     | not exist   | Directory | mkdir B       
-#     not exist  | exists      | File      | no action     
-#     not exist  | exists      | Directory | no action     
-#     newer      | older       | File      | copy A -> B   
-#     older      | newer       | File      | warning       
-#
-# perform the action on 
+class Results < Struct.new(:files_missing_in_a, :files_missing_in_b, :files_newer_in_a, :files_newer_in_b)
+end
 
 class Node
   include Comparable
@@ -114,7 +148,9 @@ class Node
   end
 end
 
+class NoSuchFile < StandardError; end
 class FsShellProxy
+
   attr_accessor :shell
 
   def initialize
@@ -129,7 +165,7 @@ class FsShellProxy
     srcPath = org.apache.hadoop.fs.Path.new(srcf);
     srcFs = srcPath.getFileSystem(conf);
     srcs = srcFs.globStatus(srcPath);
-    raise "Connot access #{srcf}: No such file or directory." if !srcs || srcs.length == 0 
+    raise(NoSuchFile, "Connot access #{srcf}: No such file or directory.") if !srcs || srcs.length == 0 
 
     srcs.each do |src|
       items = shell_list_status(srcFs, src)
@@ -177,6 +213,8 @@ class LocalFs
                               path=path, kind=(stat.directory? ? "dir" : "file"),
                               mtime=(File.mtime(path).to_f * 1000).to_i)
         end
+        
+       
       end
     f
   end
@@ -188,10 +226,13 @@ end
 if $0 == __FILE__
 
 include HSync
+raise "usage: localpath hdfspath" unless ARGV.size >= 2
 
-path = ARGV[0] || "/"
-local_nodes = LocalFs.new.ls(path, true)
-pp local_nodes
+HSync.sync(ARGV[0], ARGV[1])
+
+# path = ARGV[0] || "/"
+# local_nodes = LocalFs.new.ls(path, true)
+# pp local_nodes
 
 # shell = FsShellProxy.new
 # nodes = shell.ls(path, true)

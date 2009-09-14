@@ -293,5 +293,5 @@ HADOOP_OPTS="$HADOOP_OPTS -Dhadoop.policy.file=$HADOOP_POLICYFILE"
 # exec "$JAVA" $JAVA_HEAP_MAX $HADOOP_OPTS -classpath "$CLASSPATH" $CLASS "$@"
 JRUBY=$JRUBY_HOME/bin/jruby
 # exec env CLASSPATH=$CLASSPATH $JRUBY hsync.rb "$@"
-echo $CLASSPATH
+# echo $CLASSPATH
 exec env CLASSPATH=$CLASSPATH $JRUBY hsync.rb "$@"
