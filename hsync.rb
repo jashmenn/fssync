@@ -117,16 +117,12 @@ class Synchro
   end
 
   def push_files(files)
-    pp files
-    pp files.to_paths
-  # void copyFromLocal(Path[] srcs, String dstf) throws IOException {
-  #   Path dstPath = new Path(dstf);
-  #   FileSystem dstFs = dstPath.getFileSystem(getConf());
-  #   if (srcs.length == 1 && srcs[0].toString().equals("-"))
-  #     copyFromStdin(dstPath, dstFs);
-  #   else
-  #     dstFs.copyFromLocalFile(false, false, srcs, dstPath);
-  # }
+    shell = FsShellProxy.new
+    files.to_paths.each do |file|
+      dest = "#{@dest}/#{file}" 
+      logger.info("cp #{file} #{dest}")
+      shell.cp(file, dest)
+    end
   end
 
   def logger
@@ -203,6 +199,13 @@ class FsShellProxy
     end
 
     files
+  end
+
+  def cp(srcf, destf) 
+    dstPath = org.apache.hadoop.fs.Path.new(destf)
+    srcs = org.apache.hadoop.fs.Path.new(srcf)
+    dstFs = dstPath.getFileSystem(conf)
+    dstFs.copyFromLocalFile(false, false, srcs, dstPath)
   end
 
   def shell_list_status(srcFs, src)
