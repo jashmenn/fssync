@@ -114,7 +114,7 @@ class Synchro
                 end
     results = HSync::compare(LocalFs.new.ls(@source, true), destfiles)
     push_files(results.files_missing_in_b)
-    # push_files(results.files_newer_in_a)
+    # push_files(results.files_newer_in_a) # todo
   end
 
   def push_files(files)
