@@ -67,21 +67,6 @@ class FsShellProxy
     files
   end
 
-  def ls_file(srcFs, src)
-    files = []
-    items = shell_list_status(srcFs, src)
-    items.each do |stat|
-      cur = stat.getPath()
-      path = cur.toUri().getPath();
-
-      files << Node.new(replication=stat.getReplication, length=stat.getLen, 
-                        owner=stat.getOwner, group=stat.getGroup, 
-                        path=path, type=(stat.isDir ? "dir" : "file"),
-                        mtime=stat.getModificationTime);
-    end
-    files
-  end
-
   def shell_list_status(srcFs, src)
     return [src] if !src.isDir
     path = src.getPath
